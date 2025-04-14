@@ -76,10 +76,9 @@ router.get('/', async (req, res) => {
 // Update image & description
 router.put('/update/:id', upload.single('image'), async (req, res) => {
     const { id } = req.params;
-    const { description } = req.body;
+    const { description, imageUrl } = req.body;
 
     try {
-        // Fetch current image details
         const [result] = await db.query('SELECT * FROM images WHERE id = ?', [id]);
         if (result.length === 0) {
             return res.status(404).json({ message: 'Image not found' });
@@ -88,29 +87,52 @@ router.put('/update/:id', upload.single('image'), async (req, res) => {
         const existingImageUrl = result[0].url;
         let updatedUrl = existingImageUrl;
 
-        // If a new image is uploaded
-        if (req.file) {
-            // ✅ Fix: Extract key correctly
+        // Delete the old image from S3
+        if (req.file || imageUrl) {
             const url = new URL(existingImageUrl);
-            const key = decodeURIComponent(url.pathname.substring(1)); // remove starting '/'
-
-            const deleteParams = {
+            const key = decodeURIComponent(url.pathname.substring(1));
+            await s3.send(new DeleteObjectCommand({
                 Bucket: process.env.AWS_BUCKET_NAME,
-                Key: key,
-            };
-
-            await s3.send(new DeleteObjectCommand(deleteParams));
-            updatedUrl = req.file.location;
+                Key: key
+            }));
         }
 
-        // Update in DB
+        // If a new file is uploaded
+        if (req.file) {
+            updatedUrl = req.file.location;
+        }
+        // If new image via URL
+        else if (imageUrl) {
+            const response = await axios.get(imageUrl, { responseType: 'arraybuffer' });
+            const buffer = Buffer.from(response.data, 'binary');
+
+            const parsedUrl = new URL(imageUrl);
+            const newKey = decodeURIComponent(parsedUrl.pathname.slice(1)); // folder/filename.png
+
+            const command = new PutObjectCommand({
+                Bucket: process.env.AWS_BUCKET_NAME,
+                Key: newKey,
+                Body: buffer,
+                ContentType: response.headers['content-type']
+            });
+
+            await s3.send(command);
+
+            updatedUrl = `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${newKey}`;
+        }
+
+        // Update DB
         await db.query('UPDATE images SET url = ?, description = ? WHERE id = ?', [
             updatedUrl,
             description,
-            id,
+            id
         ]);
 
-        res.json({ message: 'Updated successfully', url: updatedUrl, description });
+        res.json({
+            message: 'Updated successfully',
+            url: updatedUrl,
+            description
+        });
     } catch (err) {
         console.error("Update Error:", err);
         res.status(500).json({ message: 'Update Error', error: err });

@@ -10,6 +10,8 @@ const GalleryPage = () => {
     const [editingImage, setEditingImage] = useState(null);
     const [editDescription, setEditDescription] = useState('');
     const [editFile, setEditFile] = useState(null);
+    const [editImageUrl, setEditImageUrl] = useState('');
+    const [editMode, setEditMode] = useState('file'); // 'file' or 'url'
     const [loading, setLoading] = useState(true);
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
@@ -46,12 +48,18 @@ const GalleryPage = () => {
         setEditingImage(imageToEdit);
         setEditDescription(imageToEdit.description);
         setEditFile(null);
+        setEditImageUrl('');
+        setEditMode('file');
     };
 
     const handleUpdate = async () => {
         const formData = new FormData();
         formData.append('description', editDescription);
-        if (editFile) formData.append('image', editFile);
+        if (editMode === 'file' && editFile) {
+            formData.append('image', editFile);
+        } else if (editMode === 'url' && editImageUrl) {
+            formData.append('imageUrl', editImageUrl);
+        }
 
         try {
             const res = await axios.put(`${MAIN_URL}/images/update/${editingImage.id}`, formData);
@@ -90,11 +98,38 @@ const GalleryPage = () => {
                             transition={{ type: 'spring', stiffness: 300, damping: 25 }}
                         >
                             <h3 className="text-2xl font-semibold mb-4 text-center dark:text-white">Edit Image</h3>
-                            <input
-                                type="file"
-                                onChange={(e) => setEditFile(e.target.files[0])}
-                                className="w-full border p-2 rounded dark:bg-gray-700 dark:text-white dark:border-gray-600 mb-4"
-                            />
+
+                            <div className="flex justify-center mb-4">
+                                <button
+                                    onClick={() => setEditMode('file')}
+                                    className={`px-4 py-2 rounded-l ${editMode === 'file' ? 'bg-blue-500 text-white' : 'bg-gray-300 dark:bg-gray-700 dark:text-white'}`}
+                                >
+                                    Upload File
+                                </button>
+                                <button
+                                    onClick={() => setEditMode('url')}
+                                    className={`px-4 py-2 rounded-r ${editMode === 'url' ? 'bg-blue-500 text-white' : 'bg-gray-300 dark:bg-gray-700 dark:text-white'}`}
+                                >
+                                    Upload via URL
+                                </button>
+                            </div>
+
+                            {editMode === 'file' ? (
+                                <input
+                                    type="file"
+                                    onChange={(e) => setEditFile(e.target.files[0])}
+                                    className="w-full border p-2 rounded dark:bg-gray-700 dark:text-white dark:border-gray-600 mb-4"
+                                />
+                            ) : (
+                                <input
+                                    type="text"
+                                    value={editImageUrl}
+                                    onChange={(e) => setEditImageUrl(e.target.value)}
+                                    placeholder="Enter image URL"
+                                    className="w-full border p-2 rounded dark:bg-gray-700 dark:text-white dark:border-gray-600 mb-4"
+                                />
+                            )}
+
                             <input
                                 type="text"
                                 value={editDescription}
@@ -102,6 +137,7 @@ const GalleryPage = () => {
                                 className="w-full border p-2 rounded dark:bg-gray-700 dark:text-white dark:border-gray-600 mb-4"
                                 placeholder="Image description"
                             />
+
                             <div className="flex justify-between gap-4">
                                 <button
                                     onClick={handleUpdate}
