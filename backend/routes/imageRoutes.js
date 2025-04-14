@@ -22,10 +22,31 @@ router.post('/upload', upload.single('image'), async (req, res) => {
 
 
 // Get all images
+// router.get('/', async (req, res) => {
+//     try {
+//         const [results] = await db.query('SELECT * FROM images');
+//         res.json(results);
+//     } catch (err) {
+//         console.error(err);
+//         res.status(500).json({ message: 'Server Error' });
+//     }
+// });
 router.get('/', async (req, res) => {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 8;
+    const offset = (page - 1) * limit;
+
     try {
-        const [results] = await db.query('SELECT * FROM images');
-        res.json(results);
+        const [results] = await db.query('SELECT * FROM images LIMIT ? OFFSET ?', [limit, offset]);
+        const [countRows] = await db.query('SELECT COUNT(*) as count FROM images');
+        const total = countRows[0].count;
+        const totalPages = Math.ceil(total / limit);
+
+        res.json({
+            images: results,
+            currentPage: page,
+            totalPages,
+        });
     } catch (err) {
         console.error(err);
         res.status(500).json({ message: 'Server Error' });

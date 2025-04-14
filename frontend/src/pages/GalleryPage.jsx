@@ -11,18 +11,22 @@ const GalleryPage = () => {
     const [editDescription, setEditDescription] = useState('');
     const [editFile, setEditFile] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [page, setPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
 
     useEffect(() => {
-        axios.get(`${MAIN_URL}/images`)
+        setLoading(true);
+        axios.get(`${MAIN_URL}/images?page=${page}&limit=8`)
             .then(res => {
-                setImages(res.data);
+                setImages(res.data.images);
+                setTotalPages(res.data.totalPages);
                 setLoading(false);
             })
             .catch(err => {
                 console.error(err);
                 setLoading(false);
             });
-    }, []);
+    }, [page]);
 
     const handleDelete = async (id) => {
         if (!confirm("Are you sure you want to delete this image?")) return;
@@ -69,6 +73,7 @@ const GalleryPage = () => {
 
     return (
         <div className="p-4">
+            {/* Edit Modal */}
             <AnimatePresence>
                 {editingImage && (
                     <motion.div
@@ -123,32 +128,55 @@ const GalleryPage = () => {
                     <div className="w-12 h-12 border-4 border-blue-500 border-dashed rounded-full animate-spin"></div>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                    {images.map((img) => (
-                        <motion.div
-                            key={img.id}
-                            className="bg-white dark:bg-gray-800 rounded-xl shadow hover:shadow-lg p-4 transition-transform hover:scale-105"
-                            whileHover={{ scale: 1.03 }}
+                <>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                        {images.map((img) => (
+                            <motion.div
+                                key={img.id}
+                                className="bg-white dark:bg-gray-800 rounded-xl shadow hover:shadow-lg p-4 transition-transform hover:scale-105"
+                                whileHover={{ scale: 1.03 }}
+                            >
+                                <img src={img.url} alt="Uploaded" className="w-full h-48 object-contain rounded mb-2" />
+                                <p className="text-center text-gray-700 dark:text-gray-300 mb-2">{img.description}</p>
+                                <div>
+                                    <button
+                                        onClick={() => openEditModal(img.id)}
+                                        className="mt-2 px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 w-full text-sm"
+                                    >
+                                        Edit
+                                    </button>
+                                    <button
+                                        onClick={() => handleDelete(img.id)}
+                                        className="mt-2 px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 w-full text-sm"
+                                    >
+                                        Delete
+                                    </button>
+                                </div>
+                            </motion.div>
+                        ))}
+                    </div>
+
+                    {/* Pagination */}
+                    <div className="flex justify-center items-center gap-4 mt-8">
+                        <button
+                            onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+                            disabled={page === 1}
+                            className="px-4 py-2 bg-gray-300 dark:bg-gray-700 rounded disabled:opacity-50"
                         >
-                            <img src={img.url} alt="Uploaded" className="w-full h-48 object-contain rounded mb-2" />
-                            <p className="text-center text-gray-700 dark:text-gray-300 mb-2">{img.description}</p>
-                            <div>
-                                <button
-                                    onClick={() => openEditModal(img.id)}
-                                    className="mt-2 px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 w-full text-sm"
-                                >
-                                    Edit
-                                </button>
-                                <button
-                                    onClick={() => handleDelete(img.id)}
-                                    className="mt-2 px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 w-full text-sm"
-                                >
-                                    Delete
-                                </button>
-                            </div>
-                        </motion.div>
-                    ))}
-                </div>
+                            Prev
+                        </button>
+                        <span className="text-lg font-medium dark:text-white">
+                            Page {page} of {totalPages}
+                        </span>
+                        <button
+                            onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
+                            disabled={page === totalPages}
+                            className="px-4 py-2 bg-gray-300 dark:bg-gray-700 rounded disabled:opacity-50"
+                        >
+                            Next
+                        </button>
+                    </div>
+                </>
             )}
         </div>
     );
