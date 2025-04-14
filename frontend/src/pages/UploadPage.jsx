@@ -8,15 +8,16 @@ const MAIN_URL = import.meta.env.VITE_MAIN_API_URL;
 const UploadPage = () => {
     const [image, setImage] = useState(null);
     const [description, setDescription] = useState("");
+    const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
 
     const handleSubmit = async (e) => {
         e.preventDefault();
 
-        if (!image) {
-            console.log("No image selected");
+        if (!image)
             return;
-        }
+
+        setLoading(true);
 
         const formData = new FormData();
         formData.append("image", image);
@@ -29,33 +30,42 @@ const UploadPage = () => {
         } catch (err) {
             console.error("Upload failed:", err);
             toast.error(err.response?.data?.message);
+        } finally {
+            setLoading(false);
         }
     };
 
     return (
         <div className="max-w-md mx-auto bg-white dark:bg-gray-800 p-6 rounded shadow transition-colors">
             <h2 className="text-2xl font-bold mb-4">Upload an Image</h2>
-            <form onSubmit={handleSubmit} className="space-y-4">
-                <input
-                    type="file"
-                    onChange={(e) => setImage(e.target.files[0])}
-                    className="w-full border p-2 dark:bg-gray-900"
-                    required
-                />
-                <input
-                    type="text"
-                    placeholder="Description"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    className="w-full border p-2 dark:bg-gray-900"
-                />
-                <button
-                    type="submit"
-                    className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700"
-                >
-                    Upload
-                </button>
-            </form>
+
+            {loading ? (
+                <div className="flex justify-center items-center h-64">
+                    <div className="w-12 h-12 border-4 border-blue-500 border-dashed rounded-full animate-spin"></div>
+                </div>
+            ) : (
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    <input
+                        type="file"
+                        onChange={(e) => setImage(e.target.files[0])}
+                        className="w-full border p-2 dark:bg-gray-900"
+                        required
+                    />
+                    <input
+                        type="text"
+                        placeholder="Description"
+                        value={description}
+                        onChange={(e) => setDescription(e.target.value)}
+                        className="w-full border p-2 dark:bg-gray-900"
+                    />
+                    <button
+                        type="submit"
+                        className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700"
+                    >
+                        Upload
+                    </button>
+                </form>)
+            }
         </div>
     );
 };
