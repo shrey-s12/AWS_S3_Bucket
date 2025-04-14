@@ -2,10 +2,8 @@ const express = require('express');
 const router = express.Router();
 const upload = require('../upload');
 const db = require('../db');
-const s3 = require('../s3');
-const axios = require('axios');
-const { PutObjectCommand } = require('@aws-sdk/client-s3');
-const { DeleteObjectCommand } = require('@aws-sdk/client-s3');
+const uploadImageFromUrl = require('../utils/uploadImageFromUrl');
+const deleteImageFromS3 = require('../utils/deleteImageFromS3');
 
 // Upload image
 router.post('/upload', upload.single('image'), async (req, res) => {
@@ -17,21 +15,7 @@ router.post('/upload', upload.single('image'), async (req, res) => {
         if (req.file) {
             url = req.file.location;
         } else if (imageUrl) {
-            const response = await axios.get(imageUrl, { responseType: 'arraybuffer' });
-            const buffer = Buffer.from(response.data, 'binary');
-
-            const imagePathFromUrl = new URL(imageUrl).pathname.slice(1);
-
-            const command = new PutObjectCommand({
-                Bucket: process.env.AWS_BUCKET_NAME,
-                Key: imagePathFromUrl,
-                Body: buffer,
-                ContentType: response.headers['content-type'],
-            });
-
-            await s3.send(command);
-
-            url = `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${imagePathFromUrl}`;
+            url = await uploadImageFromUrl(imageUrl);
         } else {
             return res.status(400).json({ message: "No image provided" });
         }
@@ -89,39 +73,15 @@ router.put('/update/:id', upload.single('image'), async (req, res) => {
 
         // Delete the old image from S3
         if (req.file || imageUrl) {
-            const url = new URL(existingImageUrl);
-            const key = decodeURIComponent(url.pathname.substring(1));
-            await s3.send(new DeleteObjectCommand({
-                Bucket: process.env.AWS_BUCKET_NAME,
-                Key: key
-            }));
+            await deleteImageFromS3(existingImageUrl);
         }
 
-        // If a new file is uploaded
         if (req.file) {
             updatedUrl = req.file.location;
-        }
-        // If new image via URL
-        else if (imageUrl) {
-            const response = await axios.get(imageUrl, { responseType: 'arraybuffer' });
-            const buffer = Buffer.from(response.data, 'binary');
-
-            const parsedUrl = new URL(imageUrl);
-            const newKey = decodeURIComponent(parsedUrl.pathname.slice(1)); // folder/filename.png
-
-            const command = new PutObjectCommand({
-                Bucket: process.env.AWS_BUCKET_NAME,
-                Key: newKey,
-                Body: buffer,
-                ContentType: response.headers['content-type']
-            });
-
-            await s3.send(command);
-
-            updatedUrl = `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${newKey}`;
+        } else if (imageUrl) {
+            updatedUrl = await uploadImageFromUrl(imageUrl);
         }
 
-        // Update DB
         await db.query('UPDATE images SET url = ?, description = ? WHERE id = ?', [
             updatedUrl,
             description,
@@ -144,24 +104,14 @@ router.delete('/delete/:id', async (req, res) => {
     const { id } = req.params;
 
     try {
-        // Get the image details from the database
         const [result] = await db.query('SELECT * FROM images WHERE id = ?', [id]);
         if (result.length === 0) {
             return res.status(404).json({ message: 'Image not found' });
         }
 
         const imageUrl = result[0].url;
-        const url = new URL(imageUrl); // parse the full URL
-        const key = decodeURIComponent(url.pathname.substring(1)); // remove the leading '/'
+        await deleteImageFromS3(imageUrl);
 
-        // Delete the image from S3
-        const deleteParams = {
-            Bucket: process.env.AWS_BUCKET_NAME,
-            Key: key,
-        };
-        await s3.send(new DeleteObjectCommand(deleteParams));
-
-        // Delete the image record from the database
         await db.query('DELETE FROM images WHERE id = ?', [id]);
 
         res.json({ message: 'Image deleted successfully' });
