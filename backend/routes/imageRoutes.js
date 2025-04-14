@@ -3,34 +3,54 @@ const router = express.Router();
 const upload = require('../upload');
 const db = require('../db');
 const s3 = require('../s3');
+const axios = require('axios');
+const { PutObjectCommand } = require('@aws-sdk/client-s3');
 const { DeleteObjectCommand } = require('@aws-sdk/client-s3');
 
 // Upload image
 router.post('/upload', upload.single('image'), async (req, res) => {
     try {
-        const { description } = req.body;
-        const url = req.file.location;
+        const { description, imageUrl } = req.body;
+
+        let url = '';
+
+        if (req.file) {
+            url = req.file.location;
+        } else if (imageUrl) {
+            const response = await axios.get(imageUrl, { responseType: 'arraybuffer' });
+            const buffer = Buffer.from(response.data, 'binary');
+
+            const imagePathFromUrl = new URL(imageUrl).pathname.slice(1);
+
+            const command = new PutObjectCommand({
+                Bucket: process.env.AWS_BUCKET_NAME,
+                Key: imagePathFromUrl,
+                Body: buffer,
+                ContentType: response.headers['content-type'],
+            });
+
+            await s3.send(command);
+
+            url = `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${imagePathFromUrl}`;
+        } else {
+            return res.status(400).json({ message: "No image provided" });
+        }
 
         const [result] = await db.query("INSERT INTO images (url, description) VALUES (?, ?)", [url, description]);
 
-        res.json({ id: result.insertId, url, description, message: 'Image uploaded successfully' });
+        res.json({
+            id: result.insertId,
+            url,
+            description,
+            message: 'Image uploaded successfully'
+        });
     } catch (err) {
         console.error("Upload error:", err);
         res.status(500).json({ message: "Upload failed", error: err });
     }
 });
 
-
-// Get all images
-// router.get('/', async (req, res) => {
-//     try {
-//         const [results] = await db.query('SELECT * FROM images');
-//         res.json(results);
-//     } catch (err) {
-//         console.error(err);
-//         res.status(500).json({ message: 'Server Error' });
-//     }
-// });
+// Get all images with pagination
 router.get('/', async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 8;
