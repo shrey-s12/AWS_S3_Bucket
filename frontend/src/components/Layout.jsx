@@ -9,6 +9,7 @@ const Layout = ({ children }) => {
                 <nav className="space-x-4 flex items-center">
                     <Link to="/" className="text-blue-600 dark:text-blue-300 hover:underline">Home</Link>
                     <Link to="/upload" className="text-blue-600 dark:text-blue-300 hover:underline">Upload</Link>
+                    <Link to="/json-upload" className="text-blue-600 dark:text-blue-300 hover:underline">JSON Upload</Link>
                     <Link to="/gallery" className="text-blue-600 dark:text-blue-300 hover:underline">Gallery</Link>
                 </nav>
             </header>

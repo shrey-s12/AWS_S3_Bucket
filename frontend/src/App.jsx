@@ -4,6 +4,7 @@ import UploadPage from './pages/UploadPage';
 import GalleryPage from './pages/GalleryPage';
 import Layout from './components/Layout';
 import { ToastContainer } from 'react-toastify';
+import UploadJSONPage from './pages/UploadJSONPage';
 
 function App() {
   return (
@@ -12,6 +13,7 @@ function App() {
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/upload" element={<UploadPage />} />
+        <Route path="/json-upload" element={<UploadJSONPage />} />
         <Route path="/gallery" element={<GalleryPage />} />
       </Routes>
     </Layout>
