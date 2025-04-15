@@ -5,6 +5,7 @@ import GalleryPage from './pages/GalleryPage';
 import Layout from './components/Layout';
 import { ToastContainer } from 'react-toastify';
 import UploadJSONPage from './pages/UploadJSONPage';
+import MigrateGalleryPage from './pages/MigrateGalleryPage';
 
 function App() {
   return (
@@ -14,6 +15,7 @@ function App() {
         <Route path="/" element={<HomePage />} />
         <Route path="/upload" element={<UploadPage />} />
         <Route path="/json-upload" element={<UploadJSONPage />} />
+        <Route path="/migrate-gallary" element={<MigrateGalleryPage />} />
         <Route path="/gallery" element={<GalleryPage />} />
       </Routes>
     </Layout>

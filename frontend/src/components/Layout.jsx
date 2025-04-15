@@ -11,6 +11,7 @@ const Layout = ({ children }) => {
                     <Link to="/upload" className="text-blue-600 dark:text-blue-300 hover:underline">Upload</Link>
                     <Link to="/json-upload" className="text-blue-600 dark:text-blue-300 hover:underline">JSON Upload</Link>
                     <Link to="/gallery" className="text-blue-600 dark:text-blue-300 hover:underline">Gallery</Link>
+                    <Link to="/migrate-gallary" className="text-blue-600 dark:text-blue-300 hover:underline">Migration-Gallery</Link>
                 </nav>
             </header>
             <main className="p-6">{children}</main>
