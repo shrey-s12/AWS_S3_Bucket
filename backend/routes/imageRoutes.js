@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const upload = require('../upload');
 const db = require('../db');
+const multer = require('multer');
 const uploadImageFromUrl = require('../utils/uploadImageFromUrl');
 const deleteImageFromS3 = require('../utils/deleteImageFromS3');
 
@@ -31,6 +32,51 @@ router.post('/upload', upload.single('image'), async (req, res) => {
     } catch (err) {
         console.error("Upload error:", err);
         res.status(500).json({ message: "Upload failed", error: err });
+    }
+});
+
+// For uploading JSON file
+const storage = multer.memoryStorage();
+const jsonUpload = multer({ storage });
+
+// Upload JSON file
+router.post('/json-upload', jsonUpload.single('jsonFile'), async (req, res) => {
+    try {
+        const jsonBuffer = req.file.buffer;
+        const links = JSON.parse(jsonBuffer.toString());
+
+        if (!Array.isArray(links)) {
+            return res.status(400).json({ message: "Invalid JSON format. Expecting an array of image URLs." });
+        }
+
+        const uploaded = [];
+
+        for (const link of links) {
+            try {
+                const s3Url = await uploadImageFromUrl(link);
+                const [result] = await db.query(
+                    "INSERT INTO images (url, description) VALUES (?, ?)",
+                    [s3Url, "Uploaded via JSON"]
+                );
+
+                uploaded.push({
+                    id: result.insertId,
+                    url: s3Url,
+                    original: link
+                });
+            } catch (err) {
+                console.error(`Error processing URL ${link}:`, err.message);
+            }
+        }
+
+        res.json({
+            message: `${uploaded.length} image(s) uploaded successfully`,
+            uploaded
+        });
+
+    } catch (err) {
+        console.error("JSON Upload Error:", err);
+        res.status(500).json({ message: "Internal Server Error", error: err.message });
     }
 });
 
