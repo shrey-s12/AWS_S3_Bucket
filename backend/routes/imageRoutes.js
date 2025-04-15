@@ -80,6 +80,46 @@ router.post('/json-upload', jsonUpload.single('jsonFile'), async (req, res) => {
     }
 });
 
+// get all images from image_migrations table
+router.get('/migrate-images-list', async (req, res) => {
+    try {
+        const [result] = await db.query('SELECT id, image_url FROM image_migrations');
+        if (result.length === 0) {
+            return res.status(404).json({ message: 'No images found for migration' });
+        }
+        res.status(200).json({
+            images: result,
+            message: 'Images fetched successfully'
+        });
+    } catch (err) {
+        console.error("Migration list error:", err.message);
+        res.status(500).json({ message: "Migration list failed", error: err.message });
+    }
+});
+
+// Migrate images from image_migrations table to update image_url in image_migarate table
+router.get('/migrate-images', async (req, res) => {
+    try {
+        const [rows] = await db.query('SELECT id, image_url FROM image_migrations');
+        let updatedCount = 0;
+
+        for (const row of rows) {
+            try {
+                const newUrl = await uploadImageFromUrl(row.image_url);
+                await db.query('UPDATE image_migrations SET image_url = ? WHERE id = ?', [newUrl, row.id]);
+                updatedCount++;
+            } catch (err) {
+                console.error(`Failed to migrate image with id ${row.id}:`, err.message);
+            }
+        }
+
+        res.status(200).json({ message: `Migration complete. ${updatedCount} images updated.` });
+    } catch (err) {
+        console.error("Migration error:", err.message);
+        res.status(500).json({ message: "Migration failed", error: err.message });
+    }
+});
+
 // Get all images with pagination
 router.get('/', async (req, res) => {
     const page = parseInt(req.query.page) || 1;
